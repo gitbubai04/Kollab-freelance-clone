@@ -1,0 +1,25 @@
+{
+  "name": "freelancer-app",
+  "private": true,
+  "version": "1.0.0",
+  "workspaces": [
+    "server",
+    "freelance-web-app"
+  ],
+  "scripts": {
+    "dev": "npm run generate --silent && concurrently -n SERVER,CLIENT -c blue,green \"npm:dev:server\" \"npm:dev:client\"",
+    "dev:server": "npm run dev -w server",
+    "dev:client": "npm run dev -w freelance-web-app",
+    "build": "npm run build -w server && npm run build -w freelance-web-app",
+    "build:server": "npm run build -w server",
+    "build:client": "npm run build -w freelance-web-app",
+    "generate": "npm run generate:openapi -w server && npm run generate:types -w freelance-web-app",
+    "generate:openapi": "npm run generate:openapi -w server",
+    "generate:types": "npm run generate:types -w freelance-web-app"
+  },
+  "devDependencies": {
+    "concurrently": "^10.0.5",
+    "express": "^5.1.0",
+    "typescript": "^5.9.3"
+  }
+}
