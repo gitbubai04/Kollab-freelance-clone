@@ -10,7 +10,8 @@ export const authAdminMiddleware = async (
     next: NextFunction
 ) => {
     try {
-        const token = req.cookies.token_tasktrackr;
+        const authHeader = req.headers.authorization;
+        const token = authHeader?.startsWith('Bearer ') ? authHeader.slice(7) : undefined;
         if (!token)
             throw new ApiError(
                 HTTP_STATUSCODE.AUTH_FAILED,

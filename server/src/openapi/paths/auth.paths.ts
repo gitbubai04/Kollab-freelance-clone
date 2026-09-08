@@ -25,8 +25,11 @@ registry.registerPath({
     responses: {
         200: registerSuccessResponse(
             "SignInResponse",
-            z.object({ role: z.string().openapi({ example: "admin" }) }),
-            "Signed in successfully; sets an httpOnly auth cookie",
+            z.object({
+                access_token: z.string().openapi({ example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..." }),
+                role: z.string().openapi({ example: "admin" }),
+            }),
+            "Signed in successfully; returns a JWT access token to send as 'Authorization: Bearer <access_token>'",
         ),
         400: errorResponse("Invalid credentials, or the account is inactive/deleted"),
     },
@@ -36,7 +39,7 @@ registry.registerPath({
     method: "post",
     path: "/api/v1/admin/auth/logout",
     tags: [TAG],
-    summary: "Log out and clear the auth cookie",
+    summary: "Log out",
     responses: {
         200: registerSuccessResponse("LogoutResponse", z.object({}), "Logged out successfully"),
         500: errorResponse("Unexpected server error"),

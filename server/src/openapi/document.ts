@@ -5,6 +5,7 @@ import { registry } from "./registry";
 // Add one `*.paths.ts` file per resource and import it here to include it
 // in the generated docs, the Swagger UI, and the frontend's generated types.
 import "./paths/auth.paths";
+import "./paths/skill.paths";
 
 export function buildOpenApiDocument() {
     const generator = new OpenApiGeneratorV31(registry.definitions);

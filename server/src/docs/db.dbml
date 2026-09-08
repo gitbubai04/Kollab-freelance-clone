@@ -1,0 +1,533 @@
+Project freelance_project_platform {
+  database_type: "MongoDB"
+  Note: '''
+    Freelance Project Management Platform
+
+    This describes the MongoDB document model (Mongoose collections).
+    dbml has no native Mongo dialect, so:
+    - Every primary key is a MongoDB ObjectId, shown here as type `ObjectId`.
+    - `Ref` lines represent a stored ObjectId reference (populate()), not a SQL foreign key.
+    - Many-to-many pivot tables from a relational design are modeled as an
+      `ObjectId[]` array field directly on the owning document instead of a
+      separate join collection.
+    - Fields noted "(embedded)" are stored as subdocuments inside the parent
+      document, not as their own collection.
+  '''
+}
+
+/* =========================
+   ENUMS
+   ========================= */
+
+Enum user_role {
+  CLIENT
+  FREELANCER
+  ADMIN
+}
+
+Enum user_status {
+  ACTIVE
+  SUSPENDED
+  DELETED
+}
+
+Enum availability_status {
+  AVAILABLE
+  BUSY
+  NOT_AVAILABLE
+}
+
+Enum project_status {
+  DRAFT
+  OPEN
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+}
+
+Enum project_type {
+  FIXED
+  HOURLY
+}
+
+Enum proposal_status {
+  SUBMITTED
+  ACCEPTED
+  REJECTED
+  WITHDRAWN
+}
+
+Enum contract_status {
+  PENDING
+  ACTIVE
+  COMPLETED
+  CANCELLED
+}
+
+Enum milestone_status {
+  PENDING
+  FUNDED
+  IN_PROGRESS
+  SUBMITTED
+  REVISION_REQUESTED
+  APPROVED
+  PAID
+  CANCELLED
+}
+
+Enum payment_type {
+  MILESTONE
+  REFUND
+  ADJUSTMENT
+}
+
+Enum payment_status {
+  PENDING
+  SUCCEEDED
+  FAILED
+  CANCELLED
+}
+
+Enum conversation_status {
+  ACTIVE
+  ARCHIVED
+}
+
+Enum review_type {
+  CLIENT_TO_FREELANCER
+  FREELANCER_TO_CLIENT
+}
+
+Enum notification_type {
+  NEW_PROPOSAL
+  PROPOSAL_ACCEPTED
+  PROPOSAL_REJECTED
+  CONTRACT_CREATED
+  MILESTONE_FUNDED
+  MILESTONE_SUBMITTED
+  REVISION_REQUESTED
+  MILESTONE_APPROVED
+  PAYMENT_SUCCEEDED
+  PAYMENT_FAILED
+  NEW_MESSAGE
+  PAYOUT_REQUESTED
+  PAYOUT_COMPLETED
+  REVIEW_RECEIVED
+  SYSTEM
+}
+
+Enum wallet_transaction_type {
+  EARNING
+  PAYOUT
+  REFUND
+  ADJUSTMENT
+}
+
+Enum wallet_transaction_status {
+  PENDING
+  COMPLETED
+  FAILED
+  CANCELLED
+}
+
+/* =========================
+   USERS
+   ========================= */
+
+Table users {
+  _id ObjectId [pk]
+  email varchar(255) [not null, unique]
+  password_hash varchar(255)
+  role user_role [not null]
+  status user_status [not null, default: 'ACTIVE']
+  email_verified_at timestamp
+  last_login_at timestamp
+  created_at timestamp [not null]
+  updated_at timestamp [not null]
+
+  Note: "password_hash is nullable because Google OAuth users may not have a password."
+}
+
+/* =========================
+   PROFILES
+   ========================= */
+
+Table profiles {
+  _id ObjectId [pk]
+  user_id ObjectId [not null, unique]
+  full_name varchar(150) [not null]
+  avatar_url varchar(500)
+  bio text
+  company_name varchar(200)
+  professional_title varchar(150)
+  hourly_rate decimal(12,2)
+  experience_years int
+  availability availability_status
+  location varchar(150)
+  skill_ids "ObjectId[]" [ref: > skills._id, note: "replaces the user_skills join collection"]
+  created_at timestamp [not null]
+  updated_at timestamp [not null]
+
+  Note: "One profile per user; consider embedding this directly on users instead of a separate collection if it is always fetched together."
+}
+
+/* =========================
+   SKILLS
+   ========================= */
+
+Table skills {
+  _id ObjectId [pk]
+  name varchar(100) [not null, unique]
+  created_at timestamp [not null]
+}
+
+/* =========================
+   PROJECTS
+   ========================= */
+
+Table projects {
+  _id ObjectId [pk]
+  client_id ObjectId [not null]
+  title varchar(200) [not null]
+  description text [not null]
+  category varchar(100) [not null]
+  project_type project_type [not null]
+  budget decimal(12,2) [not null]
+  currency varchar(3) [not null]
+  deadline date
+  status project_status [not null, default: 'DRAFT']
+  skill_ids "ObjectId[]" [ref: > skills._id, note: "replaces the project_skills join collection"]
+  published_at timestamp
+  completed_at timestamp
+  created_at timestamp [not null]
+  updated_at timestamp [not null]
+
+  indexes {
+    client_id
+    status
+    created_at
+  }
+}
+
+/* =========================
+   PROPOSALS
+   ========================= */
+
+Table proposals {
+  _id ObjectId [pk]
+  project_id ObjectId [not null]
+  freelancer_id ObjectId [not null]
+  cover_letter text [not null]
+  bid_amount decimal(12,2) [not null]
+  currency varchar(3) [not null]
+  estimated_days int [not null]
+  status proposal_status [not null, default: 'SUBMITTED']
+  submitted_at timestamp [not null]
+  updated_at timestamp [not null]
+
+  indexes {
+    project_id
+    freelancer_id
+    status
+    (project_id, freelancer_id) [unique]
+  }
+}
+
+/* =========================
+   CONTRACTS
+   ========================= */
+
+Table contracts {
+  _id ObjectId [pk]
+  project_id ObjectId [not null, unique]
+  client_id ObjectId [not null]
+  freelancer_id ObjectId [not null]
+  proposal_id ObjectId [not null, unique]
+  title varchar(200) [not null]
+  total_amount decimal(12,2) [not null]
+  currency varchar(3) [not null]
+  start_date date
+  end_date date
+  status contract_status [not null, default: 'PENDING']
+  completed_at timestamp
+  created_at timestamp [not null]
+  updated_at timestamp [not null]
+
+  indexes {
+    client_id
+    freelancer_id
+    status
+  }
+}
+
+/* =========================
+   MILESTONES
+   ========================= */
+
+Table milestones {
+  _id ObjectId [pk]
+  contract_id ObjectId [not null]
+  title varchar(200) [not null]
+  description text
+  amount decimal(12,2) [not null]
+  currency varchar(3) [not null]
+  sequence int [not null]
+  due_date date
+  status milestone_status [not null, default: 'PENDING']
+  started_at timestamp
+  submitted_at timestamp
+  approved_at timestamp
+  paid_at timestamp
+  revision_count int [not null, default: 0]
+  submissions "object[]" [note: "embedded milestone_submissions subdocuments: { submitted_by ObjectId, message text, created_at timestamp }"]
+  created_at timestamp [not null]
+  updated_at timestamp [not null]
+
+  indexes {
+    contract_id
+    status
+    (contract_id, sequence) [unique]
+  }
+}
+
+/* =========================
+   PAYMENTS
+   ========================= */
+
+Table payments {
+  _id ObjectId [pk]
+  client_id ObjectId [not null]
+  freelancer_id ObjectId [not null]
+  project_id ObjectId [not null]
+  contract_id ObjectId [not null]
+  milestone_id ObjectId
+  amount decimal(12,2) [not null]
+  currency varchar(3) [not null]
+  type payment_type [not null]
+  status payment_status [not null, default: 'PENDING']
+  stripe_payment_intent_id varchar(255) [unique]
+  stripe_customer_id varchar(255)
+  paid_at timestamp
+  created_at timestamp [not null]
+  updated_at timestamp [not null]
+
+  indexes {
+    client_id
+    freelancer_id
+    project_id
+    contract_id
+    milestone_id
+    status
+    created_at
+  }
+}
+
+/* =========================
+   CONVERSATIONS
+   ========================= */
+
+Table conversations {
+  _id ObjectId [pk]
+  project_id ObjectId
+  contract_id ObjectId
+  client_id ObjectId [not null]
+  freelancer_id ObjectId [not null]
+  status conversation_status [not null, default: 'ACTIVE']
+  last_message_at timestamp
+  created_at timestamp [not null]
+  updated_at timestamp [not null]
+
+  indexes {
+    project_id
+    contract_id
+    client_id
+    freelancer_id
+    (client_id, freelancer_id, project_id) [unique]
+  }
+}
+
+/* =========================
+   MESSAGES
+   ========================= */
+
+Table messages {
+  _id ObjectId [pk]
+  conversation_id ObjectId [not null]
+  sender_id ObjectId [not null]
+  receiver_id ObjectId [not null]
+  content text [not null]
+  is_read boolean [not null, default: false]
+  read_at timestamp
+  files "object[]" [note: "embedded message_files subdocuments: { file_name varchar(255), file_url varchar(500), mime_type varchar(100), file_size bigint, created_at timestamp }"]
+  created_at timestamp [not null]
+
+  indexes {
+    conversation_id
+    sender_id
+    receiver_id
+    is_read
+    created_at
+  }
+}
+
+/* =========================
+   REVIEWS
+   ========================= */
+
+Table reviews {
+  _id ObjectId [pk]
+  contract_id ObjectId [not null]
+  reviewer_id ObjectId [not null]
+  reviewee_id ObjectId [not null]
+  type review_type [not null]
+  rating int [not null]
+  comment text
+  created_at timestamp [not null]
+  updated_at timestamp [not null]
+
+  indexes {
+    contract_id
+    reviewer_id
+    reviewee_id
+    (contract_id, reviewer_id) [unique]
+  }
+}
+
+/* =========================
+   REFRESH TOKENS
+   ========================= */
+
+Table refresh_tokens {
+  _id ObjectId [pk]
+  user_id ObjectId [not null]
+  token_hash varchar(255) [not null, unique]
+  expires_at timestamp [not null]
+  revoked_at timestamp
+  created_at timestamp [not null]
+
+  indexes {
+    user_id
+    expires_at
+  }
+
+  Note: "Consider a TTL index on expires_at instead of manual cleanup."
+}
+
+/* =========================
+   NOTIFICATIONS
+   ========================= */
+
+Table notifications {
+  _id ObjectId [pk]
+  user_id ObjectId [not null]
+  type notification_type [not null]
+  title varchar(200) [not null]
+  message text [not null]
+  entity_type varchar(50)
+  entity_id ObjectId
+  is_read boolean [not null, default: false]
+  read_at timestamp
+  created_at timestamp [not null]
+
+  indexes {
+    user_id
+    is_read
+    created_at
+  }
+}
+
+/* =========================
+   WALLETS
+   ========================= */
+
+Table wallets {
+  _id ObjectId [pk]
+  user_id ObjectId [not null, unique]
+  available_balance decimal(14,2) [not null, default: 0]
+  pending_balance decimal(14,2) [not null, default: 0]
+  total_earned decimal(14,2) [not null, default: 0]
+  created_at timestamp [not null]
+  updated_at timestamp [not null]
+}
+
+/* =========================
+   WALLET TRANSACTIONS
+   ========================= */
+
+Table wallet_transactions {
+  _id ObjectId [pk]
+  wallet_id ObjectId [not null]
+  type wallet_transaction_type [not null]
+  amount decimal(14,2) [not null]
+  status wallet_transaction_status [not null, default: 'PENDING']
+  reference_type varchar(50)
+  reference_id ObjectId
+  description varchar(255)
+  created_at timestamp [not null]
+  updated_at timestamp [not null]
+
+  indexes {
+    wallet_id
+    type
+    status
+    created_at
+  }
+}
+
+/* =========================
+   RELATIONSHIPS
+   ========================= */
+
+/* Users */
+
+Ref: profiles.user_id - users._id
+
+Ref: projects.client_id > users._id
+
+Ref: proposals.project_id > projects._id
+Ref: proposals.freelancer_id > users._id
+
+Ref: contracts.project_id - projects._id
+Ref: contracts.client_id > users._id
+Ref: contracts.freelancer_id > users._id
+Ref: contracts.proposal_id - proposals._id
+
+Ref: milestones.contract_id > contracts._id
+
+Ref: payments.client_id > users._id
+Ref: payments.freelancer_id > users._id
+Ref: payments.project_id > projects._id
+Ref: payments.contract_id > contracts._id
+Ref: payments.milestone_id > milestones._id
+
+/* Conversations */
+
+Ref: conversations.project_id > projects._id
+Ref: conversations.contract_id > contracts._id
+Ref: conversations.client_id > users._id
+Ref: conversations.freelancer_id > users._id
+
+/* Messages */
+
+Ref: messages.conversation_id > conversations._id
+Ref: messages.sender_id > users._id
+Ref: messages.receiver_id > users._id
+
+/* Reviews */
+
+Ref: reviews.contract_id > contracts._id
+Ref: reviews.reviewer_id > users._id
+Ref: reviews.reviewee_id > users._id
+
+/* Authentication */
+
+Ref: refresh_tokens.user_id > users._id
+
+/* Notifications */
+
+Ref: notifications.user_id > users._id
+
+/* Wallet */
+
+Ref: wallets.user_id - users._id
+Ref: wallet_transactions.wallet_id > wallets._id

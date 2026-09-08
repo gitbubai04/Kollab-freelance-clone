@@ -65,25 +65,15 @@ export const UserLoginController = async (req: Request, res: Response) => {
         user.last_login = new Date();
         await user.save();
 
-        const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET!, {
+        const access_token = jwt.sign({ id: user._id }, process.env.JWT_SECRET!, {
             expiresIn: '7d',
-        });
-
-        const expiryDate = new Date();
-        expiryDate.setDate(expiryDate.getDate() + 7);
-
-        // change cookie name
-        res.cookie('test', token, {
-            httpOnly: true,
-            secure: process.env.NODE_ENV === 'production',
-            sameSite: 'strict',
-            expires: expiryDate,
         });
 
         res.status(HTTP_STATUSCODE.OK).json({
             success: true,
             message: 'User logged in successfully',
             data: {
+                access_token,
                 role: user.role
             }
         });
@@ -107,13 +97,6 @@ export const UserLoginController = async (req: Request, res: Response) => {
 // user logout controller
 export const UserLogoutController = async (req: Request, res: Response) => {
     try {
-        res.clearCookie('test',
-            {
-                httpOnly: true,
-                secure: process.env.NODE_ENV === 'production',
-                sameSite: 'strict',
-            }
-        );
         res.status(HTTP_STATUSCODE.OK).json({
             success: true,
             message: 'User logged out successfully',

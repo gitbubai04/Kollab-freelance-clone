@@ -9,3 +9,11 @@ extendZodWithOpenApi(z);
 // Single shared registry: every `routes/*.paths.ts` file registers its
 // endpoints here, and `document.ts` turns it into the final OpenAPI spec.
 export const registry = new OpenAPIRegistry();
+
+// Lets protected paths declare `security: [{ bearerAuth: [] }]` so Swagger UI
+// renders an "Authorize" button to paste the login response's access_token into.
+registry.registerComponent("securitySchemes", "bearerAuth", {
+    type: "http",
+    scheme: "bearer",
+    bearerFormat: "JWT",
+});
