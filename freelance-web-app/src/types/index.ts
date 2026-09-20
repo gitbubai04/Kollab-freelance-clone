@@ -13,6 +13,12 @@ export type SignInRequest = components["schemas"]["SignInRequest"];
 export type SignInResponse = components["schemas"]["SignInResponse"];
 export type LogoutResponse = components["schemas"]["LogoutResponse"];
 export type ApiErrorResponse = components["schemas"]["ErrorResponse"];
+export type SignUpRequest = components["schemas"]["RegisterRequest"];
+export type SignUpResponse = components["schemas"]["RegisterResponse"];
+export type RegistrationOtpRequest = components["schemas"]["RegistrationOtpRequest"];
+export type RegistrationOtpResponse = components["schemas"]["RegistrationOtpResponse"];
+export type VerifyRegistrationOtpRequest = components["schemas"]["VerifyRegistrationOtpRequest"];
+export type VerifyRegistrationOtpResponse = components["schemas"]["VerifyRegistrationOtpResponse"];
 
 // --- Domain types (hand-written) -------------------------------------------
 

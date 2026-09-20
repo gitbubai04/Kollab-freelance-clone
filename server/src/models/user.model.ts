@@ -18,22 +18,24 @@ const userSchema = new Schema<IUser>({
     phone: {
         type: String,
         required: true,
+        unique: true,
         trim: true,
     },
-    address: {
-        type: String,
-        required: true,
-        trim: true,
-
+    is_phone_verified: {
+        type: Boolean,
+        default: false
     },
-    image: {
-        type: String,
-        default: '',
-        trim: true,
+    is_email_verified: {
+        type: Boolean,
+        default: false
+    },
+    is_profile_completed: {
+        type: Boolean,
+        default: false
     },
     role: {
         type: String,
-        default: 'admin',
+        default: 'ADMIN',
         enum: ROLE,
     },
     password: {

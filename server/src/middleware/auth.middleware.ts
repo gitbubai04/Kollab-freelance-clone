@@ -29,7 +29,7 @@ export const authAdminMiddleware = async (
             _id: decoded.userId,
             is_deleted: false,
             is_active: true,
-            role: "admin",
+            role: "ADMIN",
         });
         if (!user)
             throw new ApiError(HTTP_STATUSCODE.NOT_PRESENT, "User is not present");

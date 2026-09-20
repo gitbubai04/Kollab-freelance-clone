@@ -1,13 +1,43 @@
 import { Request, Response } from 'express';
 import bcrypt from 'bcryptjs';
-import jwt from 'jsonwebtoken';
-import User from '../models/user.model';
 import { ApiError } from '../utils/error.util';
 import { HTTP_STATUSCODE, HTTPS_MESSAGE } from '../constant/http.constant';
-import { AdminLoginSchema } from '../validators/admin.validator';
-import { handleValidationError } from '../utils/response.util';
 import userModel from '../models/user.model';
 import { ADMIN_INFO } from '../constant/adminInfo.constant';
+import {
+    AuthLoginService,
+    RequestRegistrationOtpService,
+    UserRegisterService,
+    VerifyRegistrationOtpService,
+} from '../service/auth.service';
+import { IUser } from '../interface/user.interface';
+
+const sendAuthError = (res: Response, error: unknown, logMessage: string) => {
+    console.error(logMessage, error);
+
+    if (error instanceof ApiError) {
+        return res.status(error.status).json({
+            success: false,
+            message: error.message,
+        });
+    }
+
+    return res.status(HTTP_STATUSCODE.INTERNAL_ERROR).json({
+        success: false,
+        message: HTTPS_MESSAGE.INTERNAL_ERROR,
+    });
+};
+
+const sanitizeUser = (user: IUser) => ({
+    id: user._id,
+    name: user.name,
+    email: user.email,
+    phone: user.phone,
+    role: user.role,
+    is_email_verified: user.is_email_verified,
+    is_phone_verified: user.is_phone_verified,
+    is_profile_completed: user.is_profile_completed
+});
 
 // seed admin user
 export const SeedAdminUser = async () => {
@@ -43,54 +73,17 @@ export const SeedAdminUser = async () => {
 // user login controller
 export const UserLoginController = async (req: Request, res: Response) => {
     try {
-
-        const parsed = AdminLoginSchema.safeParse(req.body);
-        if (!parsed.success) return handleValidationError(res, parsed.error);
-
-        const { email, password } = parsed.data;
-
-        const user = await User.findOne({ email });
-        if (!user) {
-            throw new ApiError(HTTP_STATUSCODE.BAD_REQUEST, 'Invalid email Address');
-        }
-
-        if (!user.is_active || user.is_deleted) throw new ApiError(HTTP_STATUSCODE.BAD_REQUEST, 'User is deleted or inactive');
-
-        const isPasswordMatch = await bcrypt.compare(password, user.password);
-        if (!isPasswordMatch) {
-            throw new ApiError(HTTP_STATUSCODE.BAD_REQUEST, 'Wrong password!');
-        }
-
-        // set last login at
-        user.last_login = new Date();
-        await user.save();
-
-        const access_token = jwt.sign({ id: user._id }, process.env.JWT_SECRET!, {
-            expiresIn: '7d',
-        });
-
+        const { access_token, user } = await AuthLoginService(req.body);
         res.status(HTTP_STATUSCODE.OK).json({
             success: true,
             message: 'User logged in successfully',
             data: {
                 access_token,
-                role: user.role
+                user: sanitizeUser(user)
             }
         });
     } catch (error: unknown | ApiError) {
-        console.error('Error in userSignUpController:', error);
-
-        if (error instanceof ApiError) {
-            res.status(error.status).json({
-                success: false,
-                message: error.message,
-            });
-        } else {
-            res.status(HTTP_STATUSCODE.INTERNAL_ERROR).json({
-                success: false,
-                message: HTTPS_MESSAGE.INTERNAL_ERROR,
-            });
-        }
+        sendAuthError(res, error, 'Error in UserLoginController:');
     }
 }
 
@@ -102,19 +95,49 @@ export const UserLogoutController = async (req: Request, res: Response) => {
             message: 'User logged out successfully',
         });
     } catch (error: unknown | ApiError) {
-        console.error('Error in userSignUpController:', error);
+        sendAuthError(res, error, 'Error in UserLogoutController:');
+    }
+}
 
-        if (error instanceof ApiError) {
-            res.status(error.status).json({
-                success: false,
-                message: error.message,
-            });
-        } else {
-            res.status(HTTP_STATUSCODE.INTERNAL_ERROR).json({
-                success: false,
-                message: HTTPS_MESSAGE.INTERNAL_ERROR,
-            });
-        }
+export const UserRegisterController = async (req: Request, res: Response) => {
+    try {
+        const user = await UserRegisterService(req.body);
+
+        res.status(HTTP_STATUSCODE.CREATE).json({
+            success: true,
+            message: 'User registered successfully',
+            data: sanitizeUser(user),
+        });
+    } catch (error: unknown | ApiError) {
+        sendAuthError(res, error, 'Error in UserRegisterController:');
+    }
+}
+
+export const RequestRegistrationOtpController = async (req: Request, res: Response) => {
+    try {
+        const data = await RequestRegistrationOtpService(req.body);
+
+        res.status(HTTP_STATUSCODE.OK).json({
+            success: true,
+            message: 'Registration OTP sent successfully',
+            data,
+        });
+    } catch (error: unknown | ApiError) {
+        sendAuthError(res, error, 'Error in RequestRegistrationOtpController:');
+    }
+}
+
+export const VerifyRegistrationOtpController = async (req: Request, res: Response) => {
+    try {
+        const data = await VerifyRegistrationOtpService(req.body);
+
+        res.status(HTTP_STATUSCODE.OK).json({
+            success: true,
+            message: 'Registration OTP verified successfully',
+            data,
+        });
+    } catch (error: unknown | ApiError) {
+        sendAuthError(res, error, 'Error in VerifyRegistrationOtpController:');
     }
 }
 
