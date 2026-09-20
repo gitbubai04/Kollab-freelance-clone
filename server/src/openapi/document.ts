@@ -6,6 +6,7 @@ import { registry } from "./registry";
 // in the generated docs, the Swagger UI, and the frontend's generated types.
 import "./paths/auth.paths";
 import "./paths/skill.paths";
+import "./paths/clientProfile.paths";
 
 export function buildOpenApiDocument() {
     const generator = new OpenApiGeneratorV31(registry.definitions);

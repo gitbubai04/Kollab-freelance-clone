@@ -1,9 +1,15 @@
 import express from 'express';
 import { AddSkillController } from '../controllers/skill.controller';
-import { authAdminMiddleware } from '../middleware/auth.middleware';
+import { authMiddleware, requireRole } from '../middleware/auth.middleware';
+import { EUserRole } from '../constant/enum';
 
 const skillRouter = express.Router();
 
-skillRouter.post('/', authAdminMiddleware, AddSkillController);
+skillRouter.post(
+    '/',
+    authMiddleware,
+    requireRole(EUserRole.CLIENT),
+    AddSkillController
+);
 
 export default skillRouter;
